@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta http-equiv="cache-control" content="no-cache" />
+<title>Demo</title>
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width" />
+<meta name="ctx" th:content="${#httpServletRequest.getContextPath()}" />
+<base href="/" />
+<link rel="stylesheet" type="text/css"
+    th:href="@{/webjars/bootstrap/css/bootstrap.min.css}" />
+<script type="text/javascript" th:src="@{/webjars/jquery/jquery.min.js}"></script>
+<script type="text/javascript"
+    th:src="@{/webjars/bootstrap/js/bootstrap.min.js}"></script>
+</head>
+<body>
+    
+    <div class="container unauthenticated">
+    <h1>Login</h1>
+	    <div>
+	        With Openam: <a th:href="@{/login/openam}">click here</a>
+	    </div>
+	    <div>
+		    With Github: <a th:href="@{/login/github}">click here</a>
+		  </div>
+	</div>
+    <div class="container authenticated" style="display: none">
+    <h1>Landing</h1>
+        <h2>Logged in as:</h2>
+        <div id="user"></div>
+        Result: <div id="result"></div>
+        <div>
+        	<button onClick="account()" class="btn btn-primary">Account</button>
+        </div>
+        <div>
+            <button onClick="logout()" class="btn btn-primary">Logout</button>
+        </div>
+    </div>
+    <div class="container text-danger error" style="display:none">
+		There was an error (bad credentials).
+	</div>
+    <script type="text/javascript"
+    th:src="@{/webjars/js-cookie/js.cookie.js}"></script>
+    <script type="text/javascript">
+          $.ajaxSetup({
+           crossOrigin: true,
+            beforeSend : function(xhr, settings) {
+              if (settings.type == 'POST' || settings.type == 'PUT'
+                  || settings.type == 'DELETE') {
+                if (!(/^http:.*/.test(settings.url) 
+                   || /^https:.*/.test(settings.url) 
+                   )) {
+                  // Only send the token to relative URLs i.e. locally.
+                  xhr.setRequestHeader("X-XSRF-TOKEN",
+                      Cookies.get('XSRF-TOKEN'));
+                }
+              }
+            }
+          });
+          
+          var access_token;
+          var userurl=$("meta[name='ctx']").attr("content") + "/user";
+          
+          $.ajax({
+			url : userurl,
+			success : function(data) {
+			  access_token = data.userAuthentication.details.access_token;
+			  $(".unauthenticated").hide();
+			  $("#user").html("<p>Openam: " + data.userAuthentication.details.givenName + "" + "<br />Github: " + data.userAuthentication.details.name + "</p>");
+			  $(".authenticated").show();
+			},
+			error : function(data) {
+			  $("#user").html('');
+			  $(".unauthenticated").show();
+			  $(".authenticated").hide();
+			  if (location.href.indexOf("error=true")>=0) {
+			    $(".error").show();
+			  }
+			}
+		  });
+          
+          
+          var logouturl=$("meta[name='ctx']").attr("content") + "/logout";
+          var logout = function() {
+            $.post(logouturl, function() {
+              $("#user").html('');
+              $(".unauthenticated").show();
+              $(".authenticated").hide();
+            })
+            return true;
+          }
+          
+          
+          var accounts = function(data) {
+            $("#result").empty();
+            var accounturl=$("meta[name='ctx']").attr("content") + "/accounts";
+            //$.get("http://mac.chris.com:2222/accounts", {access_token:access_token},
+            $.get(accounturl, {access_token:access_token},
+            function(data){
+              console.log(data);
+              jQuery.each(data, function(i, val) {
+		            // here you can do your magic
+		            $("#result").append(document.createTextNode("ID:" + val.id));
+		            $("#result").append(document.createTextNode("," + val.customerId));
+		            $("#result").append(document.createTextNode("," + val.number));
+		        });
+            });
+          }
+          
+          var account = function(data) {
+            $("#result").empty();
+            var accounturl=$("meta[name='ctx']").attr("content") + "/accounts?access_token=" + access_token;
+            $.ajax({
+              url: accounturl,
+              success : function(data) {
+                console.log(data);
+                jQuery.each(data, function(i, val) {
+		            // here you can do your magic
+		            $("#result").append(document.createTextNode("ID:" + val.id));
+		            $("#result").append(document.createTextNode("," + val.customerId));
+		            $("#result").append(document.createTextNode("," + val.number));
+		        });
+              },
+              error : function(data) {
+                $("#result").append(data.responseJSON.message);
+              }
+            });
+          }
+          
+          
+          
+          
+        </script>
+</body>
+</html>
